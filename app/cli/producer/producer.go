@@ -22,19 +22,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer client.Close()
-
-	if err := client.CreateQueue("customer_created", true, false); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	//now we need to bind the queue
-	if err := client.CreateBinding("customer_created",
-		"customer.created.*",
-		"customer_events"); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	//because we are in a 'pub sub' exchange, the publisher wont create the queue and bingings
+	//the consumer must create them
 
 	fmt.Println("connected")
 

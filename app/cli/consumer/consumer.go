@@ -23,8 +23,23 @@ func main() {
 
 	defer client.Close()
 
+	//now its up to consumer to create the queue and it must be unname
+	queue, err := client.CreateQueue("", true, true)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	//now we bind this queue to the exchange we want to listen to
+	//we do not want to pass "key" anymore, because we are in fanout
+	err = client.CreateBinding(queue.Name, "", "customer_events")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	//consume the queue we just randomly created
 	messageBus, err := client.Consume(
-		"customer_created",
+		queue.Name,
 		"email_service", //this is the email service that used to send emails, you can name it anything but unique
 		false,
 	)

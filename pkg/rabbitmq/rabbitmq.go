@@ -34,7 +34,7 @@ func Connect(username, password, host, vhost string) (Client, error) {
 
 	//create all the exchanges we need in here.
 	err = ch.ExchangeDeclare("customer_events",
-		"topic",
+		"fanout", //sends a single message to all of the queues subscribed to the channel.
 		true,
 		false,
 		false,
@@ -56,18 +56,21 @@ func (c Client) Close() error {
 	return nil
 }
 
-func (c Client) CreateQueue(name string, durable, autodelete bool) error {
-
-	_, err := c.ch.QueueDeclare(name,
+func (c Client) CreateQueue(name string, durable, autodelete bool) (amqp.Queue, error) {
+	//because we are going to use "fanout" exchange, we need to know the name
+	//of the queue
+	q, err := c.ch.QueueDeclare(
+		name,
 		durable,
 		autodelete,
 		false,
 		false,
 		nil)
 	if err != nil {
-		return fmt.Errorf("queueDeclare: %w", err)
+		return amqp.Queue{}, fmt.Errorf("queueDeclare: %w", err)
 	}
-	return nil
+
+	return q, nil
 }
 
 func (c Client) CreateBinding(queueName, key, exchange string) error {
