@@ -33,8 +33,8 @@ func Connect(username, password, host, vhost string) (Client, error) {
 	}
 
 	//create all the exchanges we need in here.
-	err = ch.ExchangeDeclare("customer_events",
-		"fanout", //sends a single message to all of the queues subscribed to the channel.
+	err = ch.ExchangeDeclare("customer_callbacks",
+		"direct", //its going to use RPC now
 		true,
 		false,
 		false,
@@ -130,4 +130,11 @@ func (c Client) Consume(queueName, consumerId string, autoAck bool) (<-chan amqp
 		false, //does not wait for server to confirm
 		nil,
 	)
+}
+
+//ApplyQos allow us to limit the number of "UnAcked" messages that can be enter
+//to the queue and protect us from DOS attacks
+
+func (c Client) ApplyQos(count, size int, global bool) error {
+	return c.ch.Qos(count, size, global)
 }

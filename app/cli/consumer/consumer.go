@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -10,6 +11,21 @@ import (
 )
 
 func main() {
+	//just like producer we in here need 2 connections when using "rpc"
+
+	producer, err := rabbitmq.Connect(
+		"hamid",
+		"password",
+		"localhost",
+		"customers",
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	defer producer.Close()
+
 	client, err := rabbitmq.Connect(
 		"hamid",
 		"password",
@@ -49,6 +65,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	//we want to tell the server we only can accept 10 messages at the time
+	//and do not push more, pass 0 and bytes will be ignored because here we dealing
+	//with number of messages
+	if err := client.ApplyQos(10, 0, true); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	// ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	// defer cancel()
 
@@ -72,6 +96,21 @@ func main() {
 			defer wg.Done()
 			for msg := range workerPool {
 				fmt.Println("working on the message:", string(msg.Body))
+				//here after we received the message we can publish to producer
+				if err := producer.Send(
+					context.Background(),
+					"customer_callbacks",
+					msg.ReplyTo, //we send to the "replyTo" field which producer defined
+					amqp091.Publishing{
+						ContentType:   "text/html",
+						DeliveryMode:  amqp091.Persistent,
+						Body:          []byte("all good."),
+						CorrelationId: msg.CorrelationId, //so publisher knows what message this response if for
+					},
+				); err != nil {
+					fmt.Println("failed to send callback: %w", err)
+					return
+				}
 				if err := msg.Ack(false); err != nil {
 					fmt.Println("failed to ack:", err)
 					return
